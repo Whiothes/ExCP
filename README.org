@@ -1,0 +1,2 @@
+* About
+  This is a study notes for "Expert C Programming"

@@ -1,0 +1,163 @@
+#+STARTUP: align
+#+LATEX_HEADER: \usepackage{ulem}
+#+LATEX_HEADER: \usepackage{ctex}
+#+LaTeX_HEADER: \sectionfont{\normalfont\scshape}
+#+LaTeX_HEADER: \subsectionfont{\normalfont\itshape}
+
+#+TITLE: C 专家编程
+* \S1 C: 穿越时空的迷雾
+** 1.10 "安静的改变" 究竟有多少安静
+   * 要注意隐式转换为 unsigned 类型 (符号位)
+* \S2 这不是Bug, 而是语言特性
+** 2.2 多做之过
+*** 2.2.1 由于存在 fall through, switch 语句会带来麻烦
+    * switch 中的case 绝大多数需要break;
+    * switch 中语句加标签会破坏程序结构, 慎用!
+*** 2.2.2 粉笔也成了可用的硬件
+    * 字符串换行自动合并, 注意字符串数组中的逗号间隔不能遗漏
+    * 若期望第一次执行与之后的行为不同, 可以在代码块中声明static变量
+*** 2.2.3 太多的缺少可见性
+    * 可以给内部函数/变量增加static 关键字, 以规避全局可见可能引起的重全名
+** 2.3 误做之过
+*** 2.3.1 骆驼背上的重载
+    #+caption: 表2-1  C语言中的符号重载
+    | 符号   | 意义                                                 |
+    |--------+------------------------------------------------------|
+    | static | 在函数内部, 表示该变量的值在各个调用间一直保持延续性 |
+    |        | 在函数这一级, 表示该函数只对本文件可见               |
+    | extern | 对于函数定义, 表示全局可见(属性冗余的)               |
+    |        | 用于变量, 表示它在其它地方定义                       |
+    | void   | 作为函数的返回类型, 表示不返回类型                   |
+    |        | 在指针声明中, 表示通用指针的类型                     |
+    |        | 位于参数列表中, 表示没有参数                         |
+    | *      | 乘法运算符                                           |
+    |        | 用于指针, 间接引用                                   |
+    |        | 在声明中, 表示指针                                   |
+    | &      | 位的AND操作符                                        |
+    |        | 取地址操作符                                         |
+    | =      | 赋值                                                 |
+    | ==     | 比较运算符                                           |
+    |--------+------------------------------------------------------|
+    | <=     | 小于等于运算符                                       |
+    | <<=    | 左移复合赋值运算符                                   |
+    |--------+------------------------------------------------------|
+    | <      | 小于运算符                                           |
+    |        | 左移运算符                                           |
+    |--------+------------------------------------------------------|
+    | ()     | 在函数定义中, 包围参数列表                           |
+    |        | 调用一个函数.                                        |
+    |        | 改变表达式的运算顺序.                                |
+    |        | 强制类型转换                                         |
+    |        | 定义带参数的宏                                       |
+    |        | 包围sizeof运算符的操作数.                            |
+*** 2.3.2 有些运算符的优先级是错误的
+    #+CAPTION: 表2-2 C语言运算符优先级存在的问题
+    | 优先级问题                         | 表达式               | 人们可能误以为的结果            | 实际结果                        |
+    |------------------------------------+----------------------+---------------------------------+---------------------------------|
+    | .的优先级高于*                     | *p.f                 | p所指对象的字段f                | 对p取f偏移,作为指针, 然后解引用 |
+    | -> 操作符用于消除这个问题          |                      | (*p).f                          | *(p.f)                          |
+    |------------------------------------+----------------------+---------------------------------+---------------------------------|
+    | [] 高于*                           | int *ap[]            | ap是个指向int数组的指针         | ap是个元素为int指针的数组       |
+    |                                    |                      | int (*ap)[]                     | int *(ap[])                     |
+    |------------------------------------+----------------------+---------------------------------+---------------------------------|
+    | 函数() 高于*                       | int *fp()            | fp是个函数指针, 所指函数返回int | fp是个函数, 返回 int*           |
+    |                                    |                      | int (*fp)()                     | int *(fp())                     |
+    |------------------------------------+----------------------+---------------------------------+---------------------------------|
+    | $==$和$!=$ 高于位操作符            | (val & mask != 0)    | (val & mask) != 0               | val & (mask != 0)               |
+    | $==$和$!=$ 高于赋值运算符          | c = getchar() != EOF | (c = getchar()) != EOF          | c = (getchar() != EOF)          |
+    | 算术运算高于移位运算               | msb << 4 + lsb       | (msb << 4) + lsb                | msb << (4 + lsb)                |
+    | 逗号运算符在所有运算符中优先级最低 | i = 1,2              | i= (1,2)                        | (i = 1), 2                      |
+*** 2.4 少做之过
+**** 2.4.1 用户名中若有字母f, 便不能收到邮件
+     * argv 的参数解析问题
+**** 2.4.2 空格 -- 最后的领域
+     * "\" 转义
+     * 缺少空格可能导致的编译问题
+**** 2.4.3 C++ 的另一种注释形式
+     #+begin_src c
+       a //*
+       //*/ b
+     #+end_src
+     书中原文:
+     #+begin_quote
+     is a/b in C, but is a in C++. The C++ language allows the C notation for comments, too.
+     #+end_quote
+     但在OS X 10.15.3 上测试, C和C++都为a
+**** 2.4.4 编译器日期被破坏
+     #+begin_src c
+       /* Convert the source file timestamp into a localized date
+          string */
+       char *
+       localized_time(char * filename)
+       {
+           struct tm *tm_ptr;
+           struct stat stat_block;
+           char buffer[120];
+           /* get the sourcefile's timestamp in time_t format */
+           stat(filename, &stat_block);
+           /* convert UNIX time_t into a struct tm holding local time
+            ,*/
+           tm_ptr = localtime(&stat_block.st_mtime);
+
+           /* convert the tm struct into a string in local format */
+           strftime(buffer, sizeof(buffer), "%a %b %e %T %Y", tm_ptr);
+           return buffer;
+       }
+     #+end_src
+     buffer 是一个局部变量, 离开函数后可能被覆盖.
+     解决方案:
+     1. 返回指向字符串常量的指针, 适用于简单字符串
+     2. 使用全局变量
+     3. 使用静态变量
+     4. 显示分配内存
+     5. 要求调用者分配内存并指定大小
+* \S3 分析C语言的声明
+** 3.1 只有编译器会喜欢的语法
+   #+begin_src c
+     char (*j)[20]; /* j 是一个指向数组的指针, 数组内有20个元素 */
+     j = (char (*j)[20])malloc(20);
+
+     const int *grape;        /* 指向对象只读 */
+     const *int grape;        /* 指向对象只读 */
+     int *const graple_jelly; /* 指针只读     */
+
+     /* 指针和指向对象都只读 */
+     const int *const grape_jam;
+     int const *const grape_jam;
+   #+end_src
+** 3.3 优先级规则
+   1. 声明从它的名字开始读取, 然后按优先级顺序
+   2. 优先级从高到低依次是
+      1) 声明中被括起来的部分
+      2) 后缀操作符:
+         括号() 表示这是一个函数, 而方括号[] 表示这是一个数组
+      3) 前缀操作符: 星号*表示 "指向...的指针"
+   3. 如果 const 和 (或) volatile 关键字的后面紧跟类型说明符(如 int, long 等), 那么它作用于类型说明符. 在其它情况下, const 和(或) volatile 关键字作用于它左边紧邻的指针星号
+** 3.4 通过图表分析 C 语言的声明
+   #+begin_src c
+     char *const *(*next)();
+   #+end_src
+   next 是一个指向函数的指针, 返回类型为 char * const *
+** 3.6 ~typedef int x[10]~ 和 ~#define x int[10]~ 的区别
+   * 宏类型名可以扩展, typedef不可以
+   * typedef 定义的类型可以保证声明中所有的变量均为同一类型, define 不能
+     #+begin_src c
+       #define int_ptr int *
+       int_ptr chalk, cheese; /* int *chalk, cheese */
+
+       typedef char *char_ptr;
+       char_ptr Bentley, Rolls_Royce; /* char *Bentley; char *Rolls_Royce */
+     #+end_src
+** 3.8 理解所有分析过程的代码段
+   #+caption: 理解所有分析过程的代码段
+   #+include: "ch3/cdecl.c" src c
+* \S4 数组和指针并不相同
+** \S4.1 数组并非指针
+   #+BEGIN_SRC c
+     extern int *x;
+     extern int y[];
+   #+END_SRC
+   *第一条语句声明x是个int的指针; 第二条语句声明 y 是个int型数组, 长度尚未确定*
+** \S4.3 什么是声明, 什么是定义
+   | 定义(definition)  | 只出现一次   | 确定对象的类型并分配内存, 用于创建新的对象. 例如: ~int my_array[100];~ |
+   | 声明(declaration) | 可以多次出现 | 描述对象的类型, 用于指代其他地方定义的对象                             |
