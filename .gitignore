@@ -52,7 +52,6 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
-apue.3e/
 bin/
 build
 .ccls-cache
